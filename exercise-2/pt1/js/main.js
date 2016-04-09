@@ -34,6 +34,12 @@ $(document).ready(function() {
 function getUser(username) {
     // Make a reqest to the Github REST api for data about the user
     // with a username stored in the parameter 'username'
+    var userURL = "https://api.github.com/users/" + username;
+    return $.ajax({
+        url: userURL,
+        method: "GET",
+        headers: {Authorization: "Basic " + githubAuth()}
+    });
 }
 
 /*
@@ -43,6 +49,12 @@ function getUser(username) {
 function getRepoCall(user) {
     // After getting the user info, use that data to request from the API
     // the user's github repositories (use a promise to do this) return $.ajax({
+    return $.ajax({
+        //user. is the user returned from the previous call (getUser) bc promises, and repos_url is from the API
+        url: user.repos_url,
+        method: "GET",
+        headers: {Authorization: "Basic " + githubAuth()}
+    });
 }
 
 /*
@@ -58,20 +70,50 @@ function getRepos(nameA, nameB, callback) {
     // {
     //  name: "user",
     //  repos: repoData
-    // } 
+    // }
+    $.when(getUser(nameA), getUser(nameB)) 
+        .done(function(user1, user2) {
+            //get first element returned from the array
+            $.when(getRepoCall(user1[0]), getRepoCall(user2[0]))
+            //this is the callback function
+            .done(function(repos1, repos2) {
+                var data1 = {
+                    name: nameA,
+                    repos: repos1[0]
+                }
+                var data2 = {
+                    name: nameB,
+                    repos: repos2[0]
+                }
+                callback(data1, data2);
+            });
+        });
 }
 
 function formatRepoData(repoData) {
     // Make a dictionary mapping languages to total number of forks
     // for that language
-
+    var boxData = {};
+    repoData.repos.forEach(function(d) {
+        if (d.language != undefined) {
+            if (boxData[d.language] != undefined) {
+                boxData[d.language] += d.forks;
+            } else {
+                boxData[d.language] = d.forks;
+            }
+        }
+    });
 
 
 
     // Format the data so there are two arrays: a list of primary languages
     // and a list of the total forks for each language. This is necessary for
     // making plotly graphs.
-    
+    var keys = Object.keys(boxData);
+    keys.sort();
+    var values = keys.map(function(l) {
+        return boxData[l];
+    });
 
 
     // Using plotly make a bar graph trace with languages on the x axis and
